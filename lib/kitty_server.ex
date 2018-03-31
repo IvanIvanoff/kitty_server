@@ -7,9 +7,15 @@ defmodule KittyServer do
     spawn_link(&init/0)
   end
 
-  def loop(kitties) do
+  def order_cat(pid, name, color, description) do
+    send(pid, {self(), {:order, name, color, description}})
+  end
+
+  # Private functions
+
+  defp loop(kitties) do
     receive do
-      {pid, ref, {:order, name, color, description}} ->
+      {pid, {:order, name, color, description}} ->
         case kitties do
           [] ->
             send(pid, make_cat(name, color, description))
@@ -36,8 +42,6 @@ defmodule KittyServer do
         loop(kitties)
     end
   end
-
-  # Private functions
 
   defp init() do
     loop([])
