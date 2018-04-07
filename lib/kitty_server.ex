@@ -21,7 +21,6 @@ defmodule KittyServer do
             send(pid, make_cat(name, color, description))
             loop(kitties)
 
-          # As stated by Fred in his book:
           # If someone returns a cat, it's added to a list and is then automatically
           # sent as the next order instead of what the client actually asked for
           # (we're in this kitty store for the money, not smiles):
@@ -40,7 +39,9 @@ defmodule KittyServer do
       unknown ->
         IO.warn("Unknown message received: #{inspect(unknown)}")
         loop(kitties)
-    end
+      after
+        60_000 -> raise("No one wants kitties")
+      end
   end
 
   defp init() do
