@@ -7,25 +7,56 @@ defmodule KittyServer do
     spawn_link(&init/0)
   end
 
-  def order_cat(pid, name, color, description) do
+  def order_kitty(pid, name, color, description) do
+    ref = Process.monitor(pid)
     send(pid, {self(), {:order, name, color, description}})
+
+    receive do
+      {:ok, ^ref, kitty} ->
+        Process.demonitor(ref)
+        {:ok, kitty}
+
+      {:DOWN, ^ref, :process, ^pid, status} ->
+        {:error, "Kitty store closed abruptly with status #{status}."}
+    end
+  end
+
+  def close_shop(pid) do
+    ref = Process.monitor(pid)
+    send(pid, {self(), :terminate})
+
+    receive do
+      :ok ->
+        Process.demonitor(ref)
+        {:ok, :ok}
+
+      {:DOWN, ^ref, :process, ^pid, status} ->
+        {:error, "Kitty store closed abruptly with status #{status}."}
+    end
+  end
+
+  def return_kitty(pid, kitty) do
+    ref = Process.monitor(pid)
+    send(pid, {:return, kitty})
+
+    :ok
   end
 
   # Private functions
 
   defp loop(kitties) do
     receive do
-      {pid, {:order, name, color, description}} ->
+      {pid, ref, {:order, name, color, description}} ->
         case kitties do
           [] ->
-            send(pid, make_cat(name, color, description))
+            send(pid, {:ok, make_cat(name, color, description)})
             loop(kitties)
 
           # If someone returns a cat, it's added to a list and is then automatically
           # sent as the next order instead of what the client actually asked for
           # (we're in this kitty store for the money, not smiles):
           [kitty | rest_kitties] ->
-            send(pid, kitty)
+            send(pid, {:ok, ref, kitty})
             loop(rest_kitties)
         end
 
@@ -39,9 +70,9 @@ defmodule KittyServer do
       unknown ->
         IO.warn("Unknown message received: #{inspect(unknown)}")
         loop(kitties)
-      after
-        60_000 -> raise("No one wants kitties")
-      end
+    after
+      60_000 -> raise("No one wants kitties")
+    end
   end
 
   defp init() do
