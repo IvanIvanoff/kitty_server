@@ -8,37 +8,15 @@ defmodule KittyServer do
   end
 
   def order_kitty(pid, name, color, description) do
-    ref = Process.monitor(pid)
-    send(pid, {self(), {:order, name, color, description}})
-
-    receive do
-      {:ok, ^ref, kitty} ->
-        Process.demonitor(ref)
-        {:ok, kitty}
-
-      {:DOWN, ^ref, :process, ^pid, status} ->
-        {:error, "Kitty store closed abruptly with status #{status}."}
-    end
+    GenericServer.call(pid, {:order, name, color, description})
   end
 
   def close_shop(pid) do
-    ref = Process.monitor(pid)
-    send(pid, {self(), :terminate})
-
-    receive do
-      :ok ->
-        Process.demonitor(ref)
-        {:ok, :ok}
-
-      {:DOWN, ^ref, :process, ^pid, status} ->
-        {:error, "Kitty store closed abruptly with status #{status}."}
-    end
+    GenericServer.call(pid, :terminate)
   end
 
   def return_kitty(pid, kitty) do
-    ref = Process.monitor(pid)
     send(pid, {:return, kitty})
-
     :ok
   end
 
@@ -49,21 +27,21 @@ defmodule KittyServer do
       {pid, ref, {:order, name, color, description}} ->
         case kitties do
           [] ->
-            send(pid, {:ok, make_cat(name, color, description)})
+            send(pid, {ref, make_cat(name, color, description)})
             loop(kitties)
 
           # If someone returns a cat, it's added to a list and is then automatically
           # sent as the next order instead of what the client actually asked for
           # (we're in this kitty store for the money, not smiles):
           [kitty | rest_kitties] ->
-            send(pid, {:ok, ref, kitty})
+            send(pid, {ref, kitty})
             loop(rest_kitties)
         end
 
       {:return, kitty = %Kitty{}} ->
         loop([kitty | kitties])
 
-      {pid, :terminate} ->
+      {pid, _ref, :terminate} ->
         send(pid, :ok)
         terminate(kitties)
 
