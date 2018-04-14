@@ -14,14 +14,11 @@ defmodule GenericServer do
 
     receive do
       {^ref, reply} ->
-        Process.demonitor(ref)
+        Process.demonitor(ref, [:flush])
         reply
 
       {:DOWN, ^ref, :process, ^pid, status} ->
         {:error, "Kitty store closed abruptly with status #{status}."}
-
-      msg ->
-        IO.warn("Unexpected messgage received: #{inspect(msg)}")
     end
   end
 

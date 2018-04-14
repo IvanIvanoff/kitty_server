@@ -15,7 +15,7 @@ defmodule KittyServerTest do
   end
 
   test "catches when a kitty store dies", %{kitty_server: kitty_server} do
-    KittyServer.close_shop(kitty_server)
+    :ok = KittyServer.close_shop(kitty_server)
     {:error, msg} = KittyServer.order_kitty(kitty_server, "Rumen", "Grey", "Writes poetry")
     assert msg =~ "closed"
   end
