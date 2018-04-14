@@ -4,7 +4,11 @@ defmodule KittyServer do
   """
 
   def start_link() do
-    spawn_link(&init/0)
+    GenericServer.start_link(__MODULE__, [])
+  end
+
+  def init(state) do
+    state
   end
 
   def order_kitty(pid, name, color, description) do
@@ -16,55 +20,37 @@ defmodule KittyServer do
   end
 
   def return_kitty(pid, kitty) do
-    send(pid, {:return, kitty})
-    :ok
+    GenericServer.cast(pid, {:return, kitty})
+  end
+
+  def handle_call({:order, name, color, description}, pid, ref, state) do
+    case state do
+      [] ->
+        kitty = make_cat(name, color, description)
+        {:reply, kitty, state}
+
+      # If someone returns a cat, it's added to a list and is then automatically
+      # sent as the next order instead of what the client actually asked for
+      # (we're in this kitty store for the money, not smiles):
+      [kitty | rest_kitties] ->
+        {:reply, kitty, rest_kitties}
+    end
+  end
+
+  def handle_cast({:return, kitty}, state) do
+    {:noreply, [kitty | state]}
+  end
+
+  def terminate(kitties) do
+    kitties
+    |> Enum.each(fn kitty -> IO.puts(kitty.name <> " was set free!!!") end)
+
+    {:reply, :ok, []}
   end
 
   # Private functions
 
-  defp loop(kitties) do
-    receive do
-      {pid, ref, {:order, name, color, description}} ->
-        case kitties do
-          [] ->
-            send(pid, {ref, make_cat(name, color, description)})
-            loop(kitties)
-
-          # If someone returns a cat, it's added to a list and is then automatically
-          # sent as the next order instead of what the client actually asked for
-          # (we're in this kitty store for the money, not smiles):
-          [kitty | rest_kitties] ->
-            send(pid, {ref, kitty})
-            loop(rest_kitties)
-        end
-
-      {:return, kitty = %Kitty{}} ->
-        loop([kitty | kitties])
-
-      {pid, _ref, :terminate} ->
-        send(pid, :ok)
-        terminate(kitties)
-
-      unknown ->
-        IO.warn("Unknown message received: #{inspect(unknown)}")
-        loop(kitties)
-    after
-      60_000 -> raise("No one wants kitties")
-    end
-  end
-
-  defp init() do
-    loop([])
-  end
-
   defp make_cat(name, color, description) do
     %Kitty{name: name, color: color, description: description}
-  end
-
-  defp terminate(kitties) do
-    kitties
-    |> Enum.each(fn kitty -> IO.puts(kitty.name <> " was set free!!!") end)
-
-    :ok
   end
 end
