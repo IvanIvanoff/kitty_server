@@ -23,18 +23,16 @@ defmodule KittyServer do
     GenericServer.cast(pid, {:return, kitty})
   end
 
-  def handle_call({:order, name, color, description}, pid, ref, state) do
-    case state do
-      [] ->
-        kitty = make_cat(name, color, description)
-        {:reply, kitty, state}
+  def handle_call({:order, name, color, description}, _from, []) do
+    kitty = make_cat(name, color, description)
+    {:reply, kitty, []}
+  end
 
-      # If someone returns a cat, it's added to a list and is then automatically
-      # sent as the next order instead of what the client actually asked for
-      # (we're in this kitty store for the money, not smiles):
-      [kitty | rest_kitties] ->
-        {:reply, kitty, rest_kitties}
-    end
+  def handle_call({:order, name, color, description}, _from, [kitty | rest_kitties]) do
+    # If someone returns a cat, it's added to a list and is then automatically
+    # sent as the next order instead of what the client actually asked for
+    # (we're in this kitty store for the money, not smiles):
+    {:reply, kitty, rest_kitties}
   end
 
   def handle_cast({:return, kitty}, state) do

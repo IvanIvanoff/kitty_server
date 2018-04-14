@@ -10,7 +10,7 @@ defmodule GenericServer do
 
   def call(pid, msg) do
     ref = Process.monitor(pid)
-    send(pid, {:call, self(), ref, msg})
+    send(pid, {:call, {self(), ref}, msg})
 
     receive do
       {^ref, reply} ->
@@ -30,20 +30,19 @@ defmodule GenericServer do
     loop(module, module.init(state))
   end
 
-  def loop(module, state) do
+  defp loop(module, state) do
     receive do
-      {:call, pid, ref, :terminate} ->
-        IO.inspect( state)
+      {:call, from, :terminate} ->
         case module.terminate(state) do
           {:reply, result, _state} ->
-            send(pid, {ref, result})
+            reply(from, result)
             :ok
         end
 
-      {:call, pid, ref, msg} ->
-        case module.handle_call(msg, pid, ref, state) do
+      {:call, from, msg} ->
+        case module.handle_call(msg, from, state) do
           {:reply, result, new_state} ->
-            send(pid, {ref, result})
+            reply(from, result)
             loop(module, new_state)
         end
 
@@ -51,5 +50,9 @@ defmodule GenericServer do
         {:noreply, new_state} = module.handle_cast(msg, state)
         loop(module, new_state)
     end
+  end
+
+  defp reply({pid, ref}, msg) do
+    send(pid, {ref, msg})
   end
 end
