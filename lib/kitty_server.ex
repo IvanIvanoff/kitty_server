@@ -8,7 +8,7 @@ defmodule KittyServer do
   end
 
   def init(state) do
-    state
+    {:ok, state}
   end
 
   def order_kitty(pid, name, color, description) do
@@ -16,7 +16,7 @@ defmodule KittyServer do
   end
 
   def close_shop(pid) do
-    GenericServer.call(pid, :terminate)
+    GenericServer.stop(pid)
   end
 
   def return_kitty(pid, kitty) do
@@ -28,7 +28,7 @@ defmodule KittyServer do
     {:reply, kitty, []}
   end
 
-  def handle_call({:order, name, color, description}, _from, [kitty | rest_kitties]) do
+  def handle_call({:order, _, _, _}, _from, [kitty | rest_kitties]) do
     # If someone returns a cat, it's added to a list and is then automatically
     # sent as the next order instead of what the client actually asked for
     # (we're in this kitty store for the money, not smiles):
@@ -39,7 +39,7 @@ defmodule KittyServer do
     {:noreply, [kitty | state]}
   end
 
-  def terminate(kitties) do
+  def terminate(_reason, kitties) do
     kitties
     |> Enum.each(fn kitty -> IO.puts(kitty.name <> " was set free!!!") end)
 

@@ -1,6 +1,6 @@
 defmodule GenericServer do
   def start_link(module, state) do
-    spawn_link(fn -> init(module, state) end)
+    {:ok, spawn_link(fn -> init(module, state) end)}
   end
 
   def cast(pid, msg) do
@@ -18,23 +18,31 @@ defmodule GenericServer do
         reply
 
       {:DOWN, ^ref, :process, ^pid, status} ->
-        {:error, "Kitty store closed abruptly with status #{status}."}
+        exit(status)
     end
+  end
+
+  def stop(pid) do
+    send(pid, :terminate)
+    :ok
   end
 
   # Private functions
   defp init(module, state) do
-    loop(module, module.init(state))
+    case module.init(state) do
+      {:ok, initial_state} ->
+        loop(module, initial_state)
+
+      {:error, reason} ->
+        raise(reason)
+    end
   end
 
   defp loop(module, state) do
     receive do
-      {:call, from, :terminate} ->
-        case module.terminate(state) do
-          {:reply, result, _state} ->
-            reply(from, result)
-            :ok
-        end
+      :terminate ->
+        module.terminate(:shutdown, state)
+        :ok
 
       {:call, from, msg} ->
         case module.handle_call(msg, from, state) do

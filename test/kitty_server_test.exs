@@ -2,7 +2,7 @@ defmodule KittyServerTest do
   use ExUnit.Case
 
   setup do
-    kitty_server = KittyServer.start_link()
+    {:ok, kitty_server} = KittyServer.start_link()
     {:ok, kitty_server: kitty_server}
   end
 
@@ -16,8 +16,7 @@ defmodule KittyServerTest do
 
   test "catches when a kitty store dies", %{kitty_server: kitty_server} do
     :ok = KittyServer.close_shop(kitty_server)
-    {:error, msg} = KittyServer.order_kitty(kitty_server, "Rumen", "Grey", "Writes poetry")
-    assert msg =~ "closed"
+    :noproc == catch_exit(KittyServer.order_kitty(kitty_server, "Rumen", "Grey", "Writes poetry"))
   end
 
   test "return works as not expected by the average customer", %{kitty_server: kitty_server} do
