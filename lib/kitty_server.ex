@@ -3,8 +3,10 @@ defmodule KittyServer do
   Documentation for KittyServer.
   """
 
+  use GenServer
+
   def start_link() do
-    GenericServer.start_link(__MODULE__, [])
+    GenServer.start_link(__MODULE__, [])
   end
 
   def init(state) do
@@ -12,15 +14,15 @@ defmodule KittyServer do
   end
 
   def order_kitty(pid, name, color, description) do
-    GenericServer.call(pid, {:order, name, color, description})
+    GenServer.call(pid, {:order, name, color, description})
   end
 
   def close_shop(pid) do
-    GenericServer.stop(pid)
+    GenServer.stop(pid)
   end
 
   def return_kitty(pid, kitty) do
-    GenericServer.cast(pid, {:return, kitty})
+    GenServer.cast(pid, {:return, kitty})
   end
 
   def handle_call({:order, name, color, description}, _from, []) do
